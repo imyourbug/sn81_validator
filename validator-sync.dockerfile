@@ -28,9 +28,8 @@ COPY src/patrol/logging.ini ./src/patrol/logging.ini
 
 ARG SETUPTOOLS_SCM_PRETEND_VERSION="0.0.0"
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION} pip install -e '.[test]'
-ARG TEST_POSTGRESQL_URL
-ARG ARCHIVE_NODE
-# RUN export TEST_POSTGRESQL_URL=$TEST_POSTGRESQL_URL ARCHIVE_NODE=$ARCHIVE_NODE && pytest ./tests
+# ARG TEST_POSTGRESQL_URL
+# RUN export TEST_POSTGRESQL_URL=$TEST_POSTGRESQL_URL && pytest ./tests
 
 FROM base AS final
 
@@ -40,7 +39,7 @@ COPY --from=build /build/src/ .
 COPY src/logging.ini .
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-m", "patrol.validation.validator"]
+CMD ["python", "-m", "patrol.validation.validator-sync"]
 
 ENV DB_DIR=/var/patrol/sqlite
 ENV DB_URL="sqlite+aiosqlite:///${DB_DIR}/patrol.db"

@@ -6,6 +6,8 @@ from bittensor.core.chain_data.utils import decode_account_id
 from patrol.chain_data.substrate_client import SubstrateClient
 from patrol.chain_data.runtime_groupings import get_version_for_block
 from patrol.constants import Constants
+import logging
+logger = logging.getLogger(__name__)
 
 class HotkeyTargetGenerator:
     def __init__(self, substrate_client: SubstrateClient):
@@ -83,23 +85,22 @@ class HotkeyTargetGenerator:
         """
         This function aims to generate target hotkeys from active participants in the ecosystem.
         """
-
-        block_numbers = await self.generate_random_block_numbers(2, max_block_number)
+        max_block_number = 5100000
+        block_numbers = [i for i in range(4920351, max_block_number)]
 
         target_hotkeys = set()
         subnet_list = []
         
         # Can you turn the below in tasks with asyncio gather 
         tasks = [self.fetch_subnets_and_owners(block_number, max_block_number) for block_number in block_numbers]
+        logger.info(f"LEN OF TASKS: {len(tasks)}")
         results = await asyncio.gather(*tasks, return_exceptions=True)
         results = [result for result in results if result is not None]
         for subnets, subnet_owners in results:
             target_hotkeys.update(subnet_owners)
             subnet_list.extend(subnets)
-
-        # random choice of subnets from list
-        subnet_list = random.sample(subnet_list, 5)
-
+        logger.info(f"LEN OF SUBNET LIST: {len(subnet_list)}")
+        subnet_list = subnet_list[:10]
         tasks = [self.query_metagraph_direct(block_number=subnet[0], netuid=subnet[1], current_block=max_block_number) for subnet in subnet_list]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         results = [result for result in results if result is not None]
@@ -107,6 +108,10 @@ class HotkeyTargetGenerator:
         for neurons in results:
             hotkeys = [self.format_address(neuron["hotkey"]) for neuron in neurons]
             target_hotkeys.update(hotkeys)
+        target_hotkeys = list(target_hotkeys)
+        with open("target_hotkeys.txt", "w") as f:
+            f.write("\n".join(target_hotkeys))
+        logger.info(f"GET TARGET HOTKEYS: {len(target_hotkeys)} DONE")
 
         target_hotkeys = list(target_hotkeys)
         random.shuffle(target_hotkeys)

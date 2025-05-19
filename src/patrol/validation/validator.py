@@ -119,6 +119,7 @@ class Validator:
                 synapse = PatrolSynapse(target=target_tuple[0], target_block_number=target_tuple[1], max_block_number=max_block_number)
                 processed_synapse = self.dendrite.preprocess_synapse_for_request(axon_info, synapse)
                 url = self.dendrite._get_endpoint_url(axon_info, "PatrolSynapse")
+                logger.info(f"URL. {url}")
                 json_response, response_time = await self._invoke_miner(url, processed_synapse)
 
                 payload_subgraph = json_response['subgraph_output']
@@ -201,13 +202,29 @@ class Validator:
 
         await self.metagraph.sync()
 
-        if self.enable_weight_setting and await self.weight_setter.is_weight_setting_due():
-            await self._set_weights()
+        # if self.enable_weight_setting and await self.weight_setter.is_weight_setting_due():
+        #     await self._set_weights()
 
+        list_hotkeys = [
+            "5GBcS1xq3iPRBvBXBszf4tLUdqvNy4f4575GNwtFwrQjRKDi",
+            # "5HGXwj24ZkxJKmaNjDjxDcL8UWjzmXm4dSMbeHcA7SxYBXWD",
+            # "5ChYMEgcDdGdKKuuaPs7xT5xkKSV9Aoq9g5aBPUStcNxbZgv",
+            # "5HpCrrY1kR5yhddoEzhfNMBgnMYVqNwfKmsVTxaxsJs4kPxP",
+            # "5HeWu6SGYAgDwCu7cQRNpwYmGqXAQD7uPXociQMGM5KeDjLH",
+            # "5D8Ffcr8stQwCfgz9nnD4RmW1bZhjsejibQzNw6LY3eELb98",
+            # "5HjG678nrJSun5pwGiJhtjpcu1jXSJU6bzkJQNgtmbM2MSbu",
+            # "5DFmhjZ7z6YM8YuLQVZL5bcH7LaQptr1ubypoopE2XY6PK4H",
+            # "5GKfYq1CpT9S9SbhoDR5JNbm2YiovkWYaUTpnz2KkWWeDgiV",
+            # "5CzRPGGtU2HzdJL8A5DSqW1wuHaB2LggLsghVDeGK4ZVmg7y",
+        ]
         axons = self.metagraph.axons
         uids = self.metagraph.uids.tolist()
+        axons = [axon for axon in axons if axon.hotkey in list_hotkeys]
+        uids = [15]
 
         task = self.task_selector.select_task()
+        task = TaskType.HOTKEY_OWNERSHIP
+        # task = TaskType.COLDKEY_SEARCH
         if task == TaskType.HOTKEY_OWNERSHIP:
             batch = HotkeyOwnershipBatch(
                 self.hotkey_ownership_challenge,
@@ -332,7 +349,7 @@ async def start():
         retry_interval_seconds=300 # Retry every 5 minutes
     )
 
-    await sync_event_store(event_collector, missed_blocks_retry_task)
+    # await sync_event_store(event_collector, missed_blocks_retry_task)
 
     dendrite = bt.Dendrite(wallet)
 

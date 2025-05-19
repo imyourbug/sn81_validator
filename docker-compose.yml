@@ -1,0 +1,31 @@
+volumes:
+  pg_data:
+
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: patrol
+      POSTGRES_PASSWORD: password
+    volumes:
+      - /root/pg_data:/var/lib/postgresql/data
+
+  validator:
+    init: true
+    depends_on:
+      - db
+    build:
+      dockerfile: validator.dockerfile
+      context: .
+    pull_policy: always
+    restart: always
+    environment:
+      DB_URL: postgresql+asyncpg://patrol:password@db:5432/patrol
+      ENABLE_AUTO_UPDATE: 0
+      WALLET_NAME: khaicoldkey
+      HOTKEY_NAME: khaihotkey1
+    volumes:
+      - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
+      - /root/sample:/patrol/sample
