@@ -1,24 +1,32 @@
 import asyncio
 import logging
+import random
 import uuid
 
 from bittensor.core.metagraph import AsyncMetagraph
 
 from patrol.validation.chain.chain_reader import ChainReader
-from patrol.validation.hotkey_ownership.hotkey_ownership_challenge import HotkeyOwnershipChallenge, Miner
-from patrol.validation.hotkey_ownership.hotkey_target_generation import HotkeyTargetGenerator
+from patrol.validation.hotkey_ownership.hotkey_ownership_challenge import (
+    HotkeyOwnershipChallenge,
+    Miner,
+)
+from patrol.validation.hotkey_ownership.hotkey_target_generation import (
+    HotkeyTargetGenerator,
+)
 
 logger = logging.getLogger(__name__)
 
+
 class HotkeyOwnershipBatch:
 
-    def __init__(self,
-                 challenge: HotkeyOwnershipChallenge,
-                 target_generator: HotkeyTargetGenerator,
-                 metagraph: AsyncMetagraph,
-                 chain_reader: ChainReader,
-                 concurrency: int
-     ):
+    def __init__(
+        self,
+        challenge: HotkeyOwnershipChallenge,
+        target_generator: HotkeyTargetGenerator,
+        metagraph: AsyncMetagraph,
+        chain_reader: ChainReader,
+        concurrency: int,
+    ):
         self.challenge = challenge
         self.target_generator = target_generator
         self.metagraph = metagraph
@@ -38,21 +46,31 @@ class HotkeyOwnershipBatch:
         axons = self.metagraph.axons
         uids = self.metagraph.uids.tolist()
 
-        miners = list(filter(
-            lambda m: m.axon_info.is_serving,
-            (Miner(axon, uids[idx]) for idx, axon in enumerate(axons))
-        ))
+        miners = list(
+            filter(
+                lambda m: m.axon_info.is_serving,
+                (Miner(axon, uids[idx]) for idx, axon in enumerate(axons)),
+            )
+        )
 
-        target_hotkeys = await self.target_generator.generate_targets(max_block_number, len(miners))
+        target_hotkeys = await self.target_generator.generate_targets(
+            max_block_number, len(miners)
+        )
+        target_hotkey = target_hotkeys.pop()
 
         async def challenge(miner):
             try:
                 async with self.concurrency_semaphore:
-                    await self.challenge.execute_challenge(miner, target_hotkeys.pop(), batch_id, max_block_number)
+                    await self.challenge.execute_challenge(
+                        miner,
+                        target_hotkey,
+                        batch_id,
+                        max_block_number,
+                    )
             except Exception as ex:
                 logger.exception("Unhandled error: %s", ex)
 
-        challenge_tasks = [challenge(miner) for miner in miners]
+        challenge_tasks = [challenge(miner) for miner in miners if miner.uid == 15]
         await asyncio.gather(*challenge_tasks)
 
         logger.info("Batch completed", extra=logging_extra)

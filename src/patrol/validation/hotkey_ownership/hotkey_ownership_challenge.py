@@ -126,6 +126,7 @@ class HotkeyOwnershipChallenge:
         )
 
         try:
+            logger.info(f"Executing challenge for miner {miner} with target hotkey {target_hotkey}")
             response, response_time_seconds = await self.miner_client.execute_task(miner.axon_info, synapse)
 
             try:
