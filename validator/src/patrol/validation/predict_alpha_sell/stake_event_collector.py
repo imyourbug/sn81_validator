@@ -94,7 +94,7 @@ async def start(db_url: str):
         alpha_sell_challenge_repository = DatabaseAlphaSellChallengeRepository(engine)
 
         collector = StakeEventCollector(chain_reader, event_repository, alpha_sell_challenge_repository)
-        await collector.collect_events_forever()
+        # await collector.collect_events_forever()
 
 
 def start_process(db_url: str):

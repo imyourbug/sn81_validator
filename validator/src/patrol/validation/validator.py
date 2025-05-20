@@ -96,7 +96,7 @@ def boot():
 
         mp_ctx = multiprocessing.get_context('fork')
         semaphore = Semaphore(ctx=mp_ctx)
-
+        ENABLE_ALPHA_SELL_TASK = True
         if ENABLE_ALPHA_SELL_TASK:
             logger.info("Starting ALPHA_SELL_TASK.")
             from patrol.validation.predict_alpha_sell import stake_event_collector, alpha_sell_miner_challenge, alpha_sell_scoring
