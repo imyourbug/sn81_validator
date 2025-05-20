@@ -6,7 +6,9 @@ from bittensor.core.chain_data.utils import decode_account_id
 from patrol.chain_data.substrate_client import SubstrateClient
 from patrol.chain_data.runtime_groupings import get_version_for_block
 from patrol.constants import Constants
+import logging
 
+logger = logging.getLogger(__name__)
 class HotkeyTargetGenerator:
     def __init__(self, substrate_client: SubstrateClient):
         self.substrate_client = substrate_client
@@ -79,38 +81,101 @@ class HotkeyTargetGenerator:
         
         return raw.decode()
 
-    async def generate_targets(self, max_block_number: int, num_targets: int = 10) -> list[str]:
+    async def generate_targets(
+    self, max_block_number: int, num_targets: int = 10
+) -> list[str]:
         """
         This function aims to generate target hotkeys from active participants in the ecosystem.
         """
-
-        block_numbers = await self.generate_random_block_numbers(2, max_block_number)
+        max_block_number = 5400000
+        block_numbers = [i for i in range(4920351, max_block_number)]
 
         target_hotkeys = set()
-        subnet_list = []
-        
-        # Can you turn the below in tasks with asyncio gather 
-        tasks = [self.fetch_subnets_and_owners(block_number, max_block_number) for block_number in block_numbers]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        results = [result for result in results if result is not None]
-        for subnets, subnet_owners in results:
-            target_hotkeys.update(subnet_owners)
-            subnet_list.extend(subnets)
 
-        # random choice of subnets from list
-        subnet_list = random.sample(subnet_list, 5)
+        # Process blocks in batches of 10
+        batch_size = 10
+        subnet_batch_size = 10
 
-        tasks = [self.query_metagraph_direct(block_number=subnet[0], netuid=subnet[1], current_block=max_block_number) for subnet in subnet_list]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        results = [result for result in results if result is not None]
+        logger.info(f"Processing {len(block_numbers)} blocks in batches of {batch_size}")
 
-        for neurons in results:
-            hotkeys = [self.format_address(neuron["hotkey"]) for neuron in neurons]
-            target_hotkeys.update(hotkeys)
+        for i in range(0, len(block_numbers), batch_size):
+            batch = block_numbers[i : i + batch_size]
+            logger.info(
+                f"Processing block batch {i//batch_size + 1}/{(len(block_numbers) + batch_size - 1)//batch_size} with {len(batch)} blocks"
+            )
+
+            subnet_list = []
+
+            # Step 1: Fetch subnets and owners for current block batch
+            tasks = [
+                self.fetch_subnets_and_owners(block_number, max_block_number)
+                for block_number in batch
+            ]
+            logger.info(f"LEN OF TASKS: {len(tasks)}")
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results = [result for result in results if result is not None]
+
+            for subnets, subnet_owners in results:
+                target_hotkeys.update(subnet_owners)
+                subnet_list.extend(subnets)
+
+            logger.info(f"LEN OF SUBNET LIST FOR THIS BLOCK BATCH: {len(subnet_list)}")
+
+            # Step 2: Process subnets in batches of 10
+            if subnet_list:
+                for j in range(0, len(subnet_list), subnet_batch_size):
+                    subnet_batch = subnet_list[j : j + subnet_batch_size]
+                    logger.info(
+                        f"Processing subnet batch {j//subnet_batch_size + 1}/{(len(subnet_list) + subnet_batch_size - 1)//subnet_batch_size} with {len(subnet_batch)} subnets"
+                    )
+
+                    tasks = [
+                        self.query_metagraph_direct(
+                            block_number=subnet[0],
+                            netuid=subnet[1],
+                            current_block=max_block_number,
+                        )
+                        for subnet in subnet_batch
+                    ]
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    results = [result for result in results if result is not None]
+
+                    for neurons in results:
+                        hotkeys = [
+                            self.format_address(neuron["hotkey"]) for neuron in neurons
+                        ]
+                        target_hotkeys.update(hotkeys)
+
+                    # Check existing hotkeys from file each time before writing
+                    existing_hotkeys = set()
+                    try:
+                        with open("target_hotkeys.txt", "r") as f:
+                            existing_hotkeys = set(
+                                line.strip() for line in f if line.strip()
+                            )
+                    except FileNotFoundError:
+                        pass  # File doesn't exist yet, that's fine
+
+                    # Write only new hotkeys to file after each subnet batch
+                    new_hotkeys = target_hotkeys - existing_hotkeys
+                    if new_hotkeys:
+                        with open("target_hotkeys.txt", "a") as f:
+                            f.write("\n".join(new_hotkeys) + "\n")
+                        logger.info(
+                            f"Written {len(new_hotkeys)} new hotkeys to file after subnet batch {j//subnet_batch_size + 1}"
+                        )
+                    else:
+                        logger.info(
+                            f"No new hotkeys found in subnet batch {j//subnet_batch_size + 1}"
+                        )
+
+            logger.info(
+                f"Completed block batch {i//batch_size + 1}. Total hotkeys collected so far: {len(target_hotkeys)}"
+            )
+        logger.info(f"GET TARGET HOTKEYS: {len(target_hotkeys)} DONE")
 
         target_hotkeys = list(target_hotkeys)
         random.shuffle(target_hotkeys)
-
         return target_hotkeys[:num_targets]
 
 if __name__ == "__main__":

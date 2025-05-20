@@ -332,7 +332,7 @@ async def start():
         retry_interval_seconds=300 # Retry every 5 minutes
     )
 
-    await sync_event_store(event_collector, missed_blocks_retry_task)
+    # await sync_event_store(event_collector, missed_blocks_retry_task)
 
     dendrite = bt.Dendrite(wallet)
 
