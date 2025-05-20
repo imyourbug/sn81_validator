@@ -34,12 +34,11 @@ services:
     volumes:
       - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
       - /root/sample:/patrol/sample
-  
+
   validator-sync:
     init: true
     depends_on:
       - db
-    # image: public.ecr.aws/c9f7n4n0/patrol/validator:latest
     build:
       dockerfile: validator-sync.dockerfile
       context: .

@@ -7,8 +7,8 @@ from bittensor.core.metagraph import AsyncMetagraph
 
 from patrol.validation import TaskType
 
-NETWORK = os.getenv('NETWORK', "finney")
-NET_UID = int(os.getenv('NET_UID', "81"))
+NETWORK = "test"
+NET_UID = 275
 
 DB_URL = os.getenv("DB_URL", f"postgresql+asyncpg://patrol:password@localhost:5432/patrol")
 

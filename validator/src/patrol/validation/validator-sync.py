@@ -44,19 +44,19 @@ async def start(semaphore: Semaphore):
 
     logger.info("Auto update is enabled" if ENABLE_AUTO_UPDATE else "Auto update is disabled")
 
-    # if ENABLE_WEIGHT_SETTING:
-    #     logger.info("Weight setting is enabled.")
-    # else:
-    #     logger.warning("Weight setting is not enabled.")
+    if ENABLE_WEIGHT_SETTING:
+        logger.info("Weight setting is enabled.")
+    else:
+        logger.warning("Weight setting is not enabled.")
 
     wallet = btw.Wallet(WALLET_NAME, HOTKEY_NAME, BITTENSOR_PATH)
-    # logger.info(f"Wallet initialized: {WALLET_NAME}/{HOTKEY_NAME}")
+    logger.info(f"Wallet initialized: {WALLET_NAME}/{HOTKEY_NAME}")
 
     engine = create_async_engine(DB_URL, pool_pre_ping=True)
     hooks.invoke(HookType.ON_CREATE_DB_ENGINE, engine)
 
     subtensor = bt.async_subtensor(NETWORK)
-    # logger.info(f"Obtained subtensor for network ${NETWORK}")
+    logger.info(f"Obtained subtensor for network ${NETWORK}")
     miner_score_repository = DatabaseMinerScoreRepository(engine)
 
     weight_setter = WeightSetter(miner_score_repository, subtensor, wallet, NET_UID, TASK_WEIGHTS)
@@ -66,18 +66,18 @@ async def start(semaphore: Semaphore):
     update_available = False
     loop = asyncio.get_running_loop()
     while not update_available:
-        # logger.info("Processing updates & weights - waiting for semaphore...")
+        logger.info("Processing updates & weights - waiting for semaphore...")
         await loop.run_in_executor(None, semaphore.acquire)
         try:
             logger.info("Processing updates & weights.")
-            # update_available = ENABLE_AUTO_UPDATE and await auto_update.is_update_available()
-            # if update_available:
-            #     logger.info("Update available - service will restart")
-            #     break
+            update_available = ENABLE_AUTO_UPDATE and await auto_update.is_update_available()
+            if update_available:
+                logger.info("Update available - service will restart")
+                break
 
-            # if ENABLE_WEIGHT_SETTING:
-            #     logger.info("Weight setting is enabled. Checking due time...")
-            #     await validator.set_weights()
+            if ENABLE_WEIGHT_SETTING:
+                logger.info("Weight setting is enabled. Checking due time...")
+                await validator.set_weights()
         except Exception as ex:
             logger.exception("Error!")
         finally:
@@ -100,7 +100,7 @@ def boot():
         if ENABLE_ALPHA_SELL_TASK:
             logger.info("Starting ALPHA_SELL_TASK.")
             from patrol.validation.predict_alpha_sell import stake_event_collector, alpha_sell_miner_challenge, alpha_sell_scoring
-            # stake_event_collector.start_process(DB_URL)
+            stake_event_collector.start_process(DB_URL)
             alpha_sell_miner_challenge.start_process(wallet, db_url=DB_URL, enable_dashboard_syndication=ENABLE_DASHBOARD_SYNDICATION,
                                                      patrol_metagraph=PATROL_METAGRAPH)
             alpha_sell_scoring.start_scoring_process(wallet, DB_URL, semaphore, ENABLE_DASHBOARD_SYNDICATION)

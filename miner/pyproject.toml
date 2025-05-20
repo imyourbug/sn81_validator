@@ -2,7 +2,7 @@
 name = "patrol-miner"
 dynamic = ["version"]
 description = "Patrol Subnet Miner"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "bittensor",
     "async_substrate_interface==1.2.0",

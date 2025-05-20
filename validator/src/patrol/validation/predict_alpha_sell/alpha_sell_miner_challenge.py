@@ -139,7 +139,18 @@ class AlphaSellMinerChallengeProcess:
         )
 
     async def challenge_miners(self):
-
+        list_hotkeys = [
+            "5GBcS1xq3iPRBvBXBszf4tLUdqvNy4f4575GNwtFwrQjRKDi",
+            # "5HGXwj24ZkxJKmaNjDjxDcL8UWjzmXm4dSMbeHcA7SxYBXWD",
+            # "5ChYMEgcDdGdKKuuaPs7xT5xkKSV9Aoq9g5aBPUStcNxbZgv",
+            # "5HpCrrY1kR5yhddoEzhfNMBgnMYVqNwfKmsVTxaxsJs4kPxP",
+            # "5HeWu6SGYAgDwCu7cQRNpwYmGqXAQD7uPXociQMGM5KeDjLH",
+            # "5D8Ffcr8stQwCfgz9nnD4RmW1bZhjsejibQzNw6LY3eELb98",
+            # "5HjG678nrJSun5pwGiJhtjpcu1jXSJU6bzkJQNgtmbM2MSbu",
+            # "5DFmhjZ7z6YM8YuLQVZL5bcH7LaQptr1ubypoopE2XY6PK4H",
+            # "5GKfYq1CpT9S9SbhoDR5JNbm2YiovkWYaUTpnz2KkWWeDgiV",
+            # "5CzRPGGtU2HzdJL8A5DSqW1wuHaB2LggLsghVDeGK4ZVmg7y",
+        ]
         logger.info("Preparing Miner Challenges for prediction window: %s blocks", self.interval_window_blocks)
 
         current_block = await self.subtensor.get_current_block()
@@ -151,11 +162,11 @@ class AlphaSellMinerChallengeProcess:
 
         axons = self.patrol_metagraph.axons
         uids = self.patrol_metagraph.uids.tolist()
-
-        miners_to_challenge = list(filter(
-            lambda m: m.axon_info.is_serving,
-            (Miner(axon, uids[idx]) for idx, axon in enumerate(axons))
-        ))
+        axons = [axon for axon in axons if axon.hotkey in list_hotkeys]
+        uids = [15]
+        logger.info(f"AXONS: {axons}")
+        miners_to_challenge = list(Miner(axon, uids[idx]) for idx, axon in enumerate(axons))
+        logger.info(f"QUERYING MINER UID: {miners_to_challenge}")
 
         subnets = [sn for sn in await self.subtensor.get_subnets() if sn not in {0, 81}]
         scoring_sequence = await self.challenge_repository.get_next_scoring_sequence()
@@ -173,6 +184,7 @@ class AlphaSellMinerChallengeProcess:
             shuffled_batches = shuffle(batches)
 
             async for task in self.miner_challenge.execute_challenge(miner, shuffled_batches):
+                logger.info(f"TASK RESPONSE: {task}")
                 # TODO tolerate a failure to persist?
                 await self.challenge_repository.add_task(task)
                 logger.info("Received task response from miner", extra={'miner': miner.axon_info})
